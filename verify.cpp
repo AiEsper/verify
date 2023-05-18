@@ -25,22 +25,15 @@ uint64_t compute_xxh3(const std::string& filename) {
     return XXH3_64bits_digest(&state);
 }
 
-void process_directory(const std::string& directory_path) {
-    std::vector<std::string> filenames;
-    std::ofstream file("D:\\Project\\Test\\hash.txt");
-
-    std::map<int, std::string> hashmap;
+void process_directory(const std::string& directory_path, std::ofstream& file) {
     for (const auto& entry : std::filesystem::directory_iterator(directory_path)) {
         if (entry.is_regular_file()) {
-            filenames.push_back(entry.path().string());
+            std::string filename = entry.path().string();
+            uint64_t hash = compute_xxh3(filename);
+            if (filename.find("hash.txt") == std::string::npos) {
+                file << hash << "|" << filename << '\n';
+            }
         }
-    }
-    for (const auto& filename : filenames) {
-        uint64_t hash = compute_xxh3(filename);
-        if (filename.find("hash.txt") != std::string::npos) {
-            continue;
-        }
-        file << hash << "|" << filename << std::endl; 
     }
 }
 
@@ -54,11 +47,10 @@ std::map<double, std::string> readInputFile(std::string filename) {
     std::string keyString, value;
     std::getline(ss, keyString, '|');
     std::getline(ss, value);
-    double key = std::stod(keyString);
 
 
     // Store the key-value pair in the map
-    resultMap[key] = value;
+    resultMap.emplace(std::stod(keyString), std::move(value));
   }
 
   return resultMap;
@@ -66,13 +58,16 @@ std::map<double, std::string> readInputFile(std::string filename) {
 
 
 int main() {
-    std::string directory_path = "D:\\Project\\Test";
-    process_directory(directory_path);
-    std::map<double, std::string> resultMap = readInputFile("D:\\Project\\Test\\hash.txt");
-    for (auto const& [key, value] : resultMap) {
-        std::cout << std::hex << key << " -> " << value << std::endl;
-    }
+    std::filesystem::path current_path = std::filesystem::current_path();
+    std::string directory_path = current_path.string();
+    std::ofstream file(directory_path + "/hash.txt");
+    process_directory(directory_path, file);
+    file.close();
 
+    std::map<double, std::string> resultMap = readInputFile(directory_path + "/hash.txt");
+    for (auto const& [key, value] : resultMap) {
+        std::cout << std::hex << key << " -> " << value << '\n';
+    }
 
     return 0;
 }
